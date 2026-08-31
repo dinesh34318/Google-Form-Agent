@@ -1,0 +1,23 @@
+{
+  "personal": {
+    "full_name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1234567890",
+    "registration_number": "REG123456",
+    "gender": "Male",
+    "date_of_birth": "1998-05-15"
+  },
+  "education": {
+    "college": "Example University",
+    "degree": "Bachelor of Technology",
+    "branch": "Computer Science",
+    "cgpa": "3.8",
+    "current_year": "3rd Year"
+  },
+  "skills": ["Python", "React Native", "TypeScript", "FastAPI"],
+  "projects": ["FormAgent", "AI Assistant"],
+  "experience": ["Software Engineering Intern at TechCorp"],
+  "preferences": {
+    "willing_to_relocate": true
+  }
+}
