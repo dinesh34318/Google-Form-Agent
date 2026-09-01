@@ -8,8 +8,10 @@ if (!API_BASE) {
 }
 
 export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> => {
+    const endpoint = `${API_BASE}/analyze`;
+    console.log(`[API Call] Endpoint: ${endpoint}`);
     try {
-        const res = await fetch(`${API_BASE}/analyze`, {
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -18,8 +20,11 @@ export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> =>
             },
             body: JSON.stringify({ form_url: url })
         });
-        if (!res.ok) throw new Error(await res.text());
-        return await res.json();
+        console.log(`[API Response] ${endpoint} - Status: ${res.status}`);
+        const text = await res.text();
+        console.log(`[API Body] ${text.substring(0, 500)}...`);
+        if (!res.ok) throw new Error(`Status ${res.status}: ${text}`);
+        return JSON.parse(text);
     } catch (e) {
         console.error("[API Error] analyzeForm:", e);
         throw e;
@@ -27,8 +32,10 @@ export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> =>
 };
 
 export const generateAnswers = async (questions: FormQuestion[]): Promise<GenerateAnswersResponse> => {
+    const endpoint = `${API_BASE}/generate-answers`;
+    console.log(`[API Call] Endpoint: ${endpoint}`);
     try {
-        const res = await fetch(`${API_BASE}/generate-answers`, {
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -37,8 +44,11 @@ export const generateAnswers = async (questions: FormQuestion[]): Promise<Genera
             },
             body: JSON.stringify({ questions })
         });
-        if (!res.ok) throw new Error(await res.text());
-        return await res.json();
+        console.log(`[API Response] ${endpoint} - Status: ${res.status}`);
+        const text = await res.text();
+        console.log(`[API Body] ${text.substring(0, 500)}...`);
+        if (!res.ok) throw new Error(`Status ${res.status}: ${text}`);
+        return JSON.parse(text);
     } catch (e) {
         console.error("[API Error] generateAnswers:", e);
         throw e;
@@ -46,8 +56,10 @@ export const generateAnswers = async (questions: FormQuestion[]): Promise<Genera
 };
 
 export const generatePrefilledUrl = async (url: string, questions: FormQuestion[], answers: AnswerDecision[]): Promise<string> => {
+    const endpoint = `${API_BASE}/generate-prefilled-url`;
+    console.log(`[API Call] Endpoint: ${endpoint}`);
     try {
-        const res = await fetch(`${API_BASE}/generate-prefilled-url`, {
+        const res = await fetch(endpoint, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
@@ -56,8 +68,11 @@ export const generatePrefilledUrl = async (url: string, questions: FormQuestion[
             },
             body: JSON.stringify({ form_url: url, questions, answers })
         });
-        if (!res.ok) throw new Error(await res.text());
-        const data: UrlGeneratorResponse = await res.json();
+        console.log(`[API Response] ${endpoint} - Status: ${res.status}`);
+        const text = await res.text();
+        console.log(`[API Body] ${text.substring(0, 500)}...`);
+        if (!res.ok) throw new Error(`Status ${res.status}: ${text}`);
+        const data: UrlGeneratorResponse = JSON.parse(text);
         return data.prefilled_url || url;
     } catch (e) {
         console.error("[API Error] generatePrefilledUrl:", e);

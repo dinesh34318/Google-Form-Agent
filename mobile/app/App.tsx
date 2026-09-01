@@ -15,6 +15,7 @@ export default function App() {
       return;
     }
     
+    console.log(`[DEBUG] EXPO_PUBLIC_API_URL: ${process.env.EXPO_PUBLIC_API_URL}`);
     setLoading(true);
     
     try {
@@ -29,6 +30,7 @@ export default function App() {
       // 3. Generate Link
       setLoadingMsg('Filling known answers...');
       const prefilledUrl = await generatePrefilledUrl(url, analyzeResult.questions, ansResult.answers);
+      console.log(`[DEBUG] Received Prefilled URL: ${prefilledUrl}`);
       
       // 4. Open in Phone Browser
       setLoading(false);
@@ -37,12 +39,32 @@ export default function App() {
         'We have filled known answers. Please review the form, edit if necessary, and click Submit.',
         [
           { text: 'Cancel', style: 'cancel' },
-          { text: 'Open Form', onPress: () => Linking.openURL(prefilledUrl) }
+          { 
+            text: 'Open Form', 
+            onPress: async () => {
+                try {
+                    const canOpen = await Linking.canOpenURL(prefilledUrl);
+                    console.log(`[DEBUG] Linking.canOpenURL: ${canOpen}`);
+                    if (!canOpen) {
+                        console.error(`[DEBUG] Cannot open URL. Linking.canOpenURL returned false.`);
+                        Alert.alert('Error', 'Cannot open the URL on this device.');
+                        return;
+                    }
+                    console.log(`[DEBUG] Executing Linking.openURL...`);
+                    await Linking.openURL(prefilledUrl);
+                    console.log(`[DEBUG] Linking.openURL succeeded!`);
+                } catch (linkError: any) {
+                    console.error(`[DEBUG] Linking.openURL Error: ${linkError.message}`);
+                    Alert.alert('Linking Error', linkError.message || 'Failed to open URL');
+                }
+            } 
+          }
         ]
       );
       
     } catch (e: any) {
       setLoading(false);
+      console.error(`[DEBUG] Autofill Flow Error: ${e.message}`);
       Alert.alert('Error', e.message || 'Failed to process form');
     }
   };
