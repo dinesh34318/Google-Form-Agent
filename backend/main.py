@@ -19,9 +19,13 @@ from agent import decide_answers
 from form_filler import fill_form
 from profile import update_preference
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
+
 app = FastAPI(title="FormAgent API")
 
-# Allow mobile app to connect
+# Allow mobile app to connect (still needed for dev)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,6 +33,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Static files must be mounted at the end to not override API routes
 
 @app.post("/analyze", response_model=FormAnalysisResponse)
 async def analyze_form(req: AnalyzeRequest):
@@ -89,6 +95,11 @@ async def get_session_status(session_id: str):
     if session_id in active_sessions:
         return {"status": "active"}
     return {"status": "expired"}
+
+# Mount SPA
+static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+if os.path.exists(static_dir):
+    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn

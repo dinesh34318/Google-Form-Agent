@@ -100,11 +100,17 @@ async def fill_form(session_id: str, answers: List[UserAnswer]) -> dict:
         except Exception as e:
             print(f"Error filling question '{user_answer.question}': {e}")
 
-    # DO NOT CLICK SUBMIT as per requirements.
-    # User will review the form.
-    # We should take a screenshot or just return success and keep the browser open.
-    # In a real desktop app, we'd bring the browser to front. 
-    # For this backend, we return success and the user can check the browser window.
-    # Since headless=True might be set, the user can't see it. Let's make sure headless=False is an option.
+    # Look for the Submit button
+    submit_button = await page.query_selector('div[role="button"]:has-text("Submit")')
+    if not submit_button:
+        # Sometimes it's uppercase
+        submit_button = await page.query_selector('div[role="button"]:has-text("SUBMIT")')
+        
+    if submit_button:
+        await submit_button.click()
+        await page.wait_for_timeout(2000) # wait for submission to process
+        
+    from form_reader import close_session
+    await close_session(session_id)
     
-    return {"status": "filled", "session_id": session_id}
+    return {"status": "submitted" if submit_button else "filled", "session_id": session_id}
