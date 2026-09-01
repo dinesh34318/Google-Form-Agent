@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
-import { analyzeForm, generateAnswers, generatePrefilledUrl } from './src/services/api';
+import { generatePrefilledUrl } from './src/services/api';
 
 export default function App() {
   const [url, setUrl] = useState('');
@@ -31,23 +31,11 @@ export default function App() {
     addLog(`[CONFIG] EXPO_PUBLIC_API_URL: ${process.env.EXPO_PUBLIC_API_URL}`);
     
     try {
-      // 1. Analyze
-      addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/analyze`);
-      const analyzeResult = await analyzeForm(url);
-      addLog(`[API Response] /analyze Success`);
-      
-      // 2. Map Profile
-      addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/generate-answers`);
-      const ansResult = await generateAnswers(analyzeResult.questions);
-      addLog(`[API Response] /generate-answers Success`);
-      
-      // 3. Generate Link
       addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/generate-prefilled-url`);
-      const generatedUrl = await generatePrefilledUrl(url, analyzeResult.questions, ansResult.answers);
+      const generatedUrl = await generatePrefilledUrl(url);
       addLog(`[API Response] /generate-prefilled-url Success`);
       addLog(`[RESULT] Prefilled URL received:\n${generatedUrl}`);
       
-      // 4. Update UI to show button
       setPrefilledUrl(generatedUrl);
       setLoading(false);
       
