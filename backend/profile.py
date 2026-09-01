@@ -10,6 +10,15 @@ DATA_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", "data"))
 PROFILE_PATH = os.environ.get("PROFILE_PATH", os.path.join(DATA_DIR, "profile.json"))
 
 def load_profile() -> Dict[str, Any]:
+    # 1. Try to load from secure environment variable (for Render cloud)
+    env_profile = os.environ.get("USER_PROFILE_JSON")
+    if env_profile:
+        try:
+            return json.loads(env_profile)
+        except Exception as e:
+            print(f"DEBUG: Failed to parse USER_PROFILE_JSON env var: {e}")
+
+    # 2. Fallback to local file
     if not os.path.exists(PROFILE_PATH):
         print(f"DEBUG: Profile not found at {PROFILE_PATH}")
         return {}
