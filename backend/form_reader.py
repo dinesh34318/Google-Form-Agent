@@ -11,13 +11,13 @@ browsers = {}
 
 async def init_browser():
     playwright = await async_playwright().start()
-    is_headless = os.getenv("HEADLESS", "false").lower() == "true"
+    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
     browser = await playwright.chromium.launch(headless=is_headless)
     return playwright, browser
 
 async def extract_form_data(url: str) -> dict:
     playwright = await async_playwright().start()
-    is_headless = os.getenv("HEADLESS", "false").lower() == "true"
+    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
     browser = await playwright.chromium.launch(headless=is_headless)
     context = await browser.new_context()
     page = await context.new_page()
