@@ -1,13 +1,22 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, View, TextInput, Button, ActivityIndicator, Alert } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert } from 'react-native';
 import * as Linking from 'expo-linking';
 import { analyzeForm, generateAnswers, generatePrefilledUrl } from './src/services/api';
 
 export default function App() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
-  const [loadingMsg, setLoadingMsg] = useState('');
+  const [debugLogs, setDebugLogs] = useState<string[]>([]);
   const [prefilledUrl, setPrefilledUrl] = useState<string | null>(null);
+
+  const addLog = (msg: string) => {
+    console.log(msg);
+    setDebugLogs(prev => [...prev, msg]);
+  };
+
+  useEffect(() => {
+    addLog(`[INIT] EXPO_PUBLIC_API_URL: ${process.env.EXPO_PUBLIC_API_URL || 'UNDEFINED'}`);
+  }, []);
   
   const handleAutofill = async () => {
     if (!url) {
@@ -15,23 +24,28 @@ export default function App() {
       return;
     }
     
-    console.log(`[DEBUG] EXPO_PUBLIC_API_URL: ${process.env.EXPO_PUBLIC_API_URL}`);
+    setDebugLogs([]);
     setLoading(true);
     setPrefilledUrl(null);
+    addLog(`[START] Button Pressed`);
+    addLog(`[CONFIG] EXPO_PUBLIC_API_URL: ${process.env.EXPO_PUBLIC_API_URL}`);
     
     try {
       // 1. Analyze
-      setLoadingMsg('Opening form...');
+      addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/analyze`);
       const analyzeResult = await analyzeForm(url);
+      addLog(`[API Response] /analyze Success`);
       
       // 2. Map Profile
-      setLoadingMsg('Reading questions...\nMatching profile...');
+      addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/generate-answers`);
       const ansResult = await generateAnswers(analyzeResult.questions);
+      addLog(`[API Response] /generate-answers Success`);
       
       // 3. Generate Link
-      setLoadingMsg('Filling known answers...');
+      addLog(`[API Call] Endpoint: ${process.env.EXPO_PUBLIC_API_URL}/generate-prefilled-url`);
       const generatedUrl = await generatePrefilledUrl(url, analyzeResult.questions, ansResult.answers);
-      console.log(`[DEBUG] Received Prefilled URL: ${generatedUrl}`);
+      addLog(`[API Response] /generate-prefilled-url Success`);
+      addLog(`[RESULT] Prefilled URL received:\n${generatedUrl}`);
       
       // 4. Update UI to show button
       setPrefilledUrl(generatedUrl);
@@ -39,7 +53,7 @@ export default function App() {
       
     } catch (e: any) {
       setLoading(false);
-      console.error(`[DEBUG] Autofill Flow Error: ${e.message}`);
+      addLog(`[ERROR] Flow failed: ${e.message}`);
       Alert.alert('Error', e.message || 'Failed to process form');
     }
   };
@@ -47,50 +61,28 @@ export default function App() {
   const openForm = async () => {
     if (!prefilledUrl) return;
     try {
+        addLog(`[LINKING] Testing Linking.canOpenURL...`);
         const canOpen = await Linking.canOpenURL(prefilledUrl);
-        console.log(`[DEBUG] Linking.canOpenURL: ${canOpen}`);
+        addLog(`[LINKING] Can open URL: ${canOpen}`);
+        
         if (!canOpen) {
-            console.error(`[DEBUG] Cannot open URL. Linking.canOpenURL returned false.`);
+            addLog(`[LINKING ERROR] Device claims it cannot open the URL.`);
             Alert.alert('Error', 'Cannot open the URL on this device.');
             return;
         }
-        console.log(`[DEBUG] Executing Linking.openURL...`);
+        
+        addLog(`[LINKING] Calling Linking.openURL()...`);
         await Linking.openURL(prefilledUrl);
-        console.log(`[DEBUG] Linking.openURL succeeded!`);
+        addLog(`[LINKING] Linking.openURL() returned successfully.`);
     } catch (linkError: any) {
-        console.error(`[DEBUG] Linking.openURL Error: ${linkError.message}`);
+        addLog(`[LINKING ERROR] ${linkError.message}`);
         Alert.alert('Linking Error', linkError.message || 'Failed to open URL');
     }
   };
 
-  if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text style={styles.loadingText}>{loadingMsg}</Text>
-      </View>
-    );
-  }
-
-  if (prefilledUrl) {
-    return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.title}>Success!</Text>
-        <Text style={styles.loadingText}>We have filled known answers.</Text>
-        <Text style={styles.loadingText}>Please review the form, edit if necessary, and click Submit.</Text>
-        <View style={{ marginTop: 30, width: '100%' }}>
-          <Button title="Open Google Form" onPress={openForm} color="#4CAF50" />
-        </View>
-        <View style={{ marginTop: 20, width: '100%' }}>
-          <Button title="Start Over" onPress={() => setPrefilledUrl(null)} color="#f44336" />
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.centerContainer}>
-      <Text style={styles.title}>FormAgent</Text>
+    <ScrollView contentContainerStyle={styles.scrollContainer} style={styles.container}>
+      <Text style={styles.title}>FormAgent Debug</Text>
       
       <TextInput
         style={styles.urlInput}
@@ -101,22 +93,41 @@ export default function App() {
       />
       
       <View style={styles.buttonContainer}>
-        <Button title="Open & Autofill" onPress={handleAutofill} color="#2196F3" />
+        <Button title="Open & Autofill" onPress={handleAutofill} color="#2196F3" disabled={loading} />
       </View>
-    </View>
+
+      {loading && <ActivityIndicator size="large" color="#0000ff" style={{ marginVertical: 20 }} />}
+      
+      {prefilledUrl && !loading && (
+        <View style={styles.successContainer}>
+          <Text style={styles.successText}>Ready to open form!</Text>
+          <Button title="Execute Linking.openURL()" onPress={openForm} color="#4CAF50" />
+        </View>
+      )}
+
+      <View style={styles.logContainer}>
+        <Text style={styles.logTitle}>Debug Logs:</Text>
+        {debugLogs.map((log, i) => (
+          <Text key={i} style={styles.logText}>{log}</Text>
+        ))}
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  centerContainer: {
+  container: {
     flex: 1,
     backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  scrollContainer: {
     padding: 20,
+    paddingTop: 60,
+    alignItems: 'center',
+    paddingBottom: 40,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 20,
     color: '#333'
@@ -137,11 +148,41 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     overflow: 'hidden'
   },
-  loadingText: {
-    marginTop: 10,
+  successContainer: {
+    width: '100%',
+    marginVertical: 20,
+    padding: 15,
+    backgroundColor: '#e8f5e9',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4CAF50',
+    alignItems: 'center'
+  },
+  successText: {
     fontSize: 16,
-    textAlign: 'center',
-    lineHeight: 24,
-    color: '#666'
+    fontWeight: 'bold',
+    color: '#2e7d32',
+    marginBottom: 15
+  },
+  logContainer: {
+    width: '100%',
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    minHeight: 200
+  },
+  logTitle: {
+    fontWeight: 'bold',
+    marginBottom: 10,
+    fontSize: 16
+  },
+  logText: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    marginBottom: 5,
+    color: '#333'
   }
 });
