@@ -11,7 +11,11 @@ export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> =>
     try {
         const res = await fetch(`${API_BASE}/analyze`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'bypass-tunnel-reminder': 'true',
+                'User-Agent': 'FormAgent/1.0'
+            },
             body: JSON.stringify({ form_url: url })
         });
         if (!res.ok) throw new Error(await res.text());
@@ -26,7 +30,11 @@ export const generateAnswers = async (questions: FormQuestion[]): Promise<Genera
     try {
         const res = await fetch(`${API_BASE}/generate-answers`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'bypass-tunnel-reminder': 'true',
+                'User-Agent': 'FormAgent/1.0'
+            },
             body: JSON.stringify({ questions })
         });
         if (!res.ok) throw new Error(await res.text());
@@ -41,7 +49,11 @@ export const generatePrefilledUrl = async (url: string, questions: FormQuestion[
     try {
         const res = await fetch(`${API_BASE}/generate-prefilled-url`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'bypass-tunnel-reminder': 'true',
+                'User-Agent': 'FormAgent/1.0'
+            },
             body: JSON.stringify({ form_url: url, questions, answers })
         });
         if (!res.ok) throw new Error(await res.text());
