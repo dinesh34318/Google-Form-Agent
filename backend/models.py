@@ -33,8 +33,6 @@ class GenerateAnswersResponse(BaseModel):
 
 class UrlGeneratorRequest(BaseModel):
     form_url: str
-    questions: List[FormQuestion]
-    answers: List[AnswerDecision]
 
 class UrlGeneratorResponse(BaseModel):
     prefilled_url: Optional[str] = None

@@ -7,7 +7,8 @@ import os
 from models import (
     AnalyzeRequest, FormAnalysisResponse, 
     GenerateAnswersRequest, GenerateAnswersResponse,
-    UrlGeneratorRequest, UrlGeneratorResponse
+    UrlGeneratorRequest, UrlGeneratorResponse,
+    FormQuestion
 )
 from form_reader import extract_form_data, close_session
 from agent import decide_answers
@@ -53,8 +54,28 @@ async def get_answers(req: GenerateAnswersRequest):
 @app.post("/generate-prefilled-url", response_model=UrlGeneratorResponse)
 async def get_prefilled_url(req: UrlGeneratorRequest):
     try:
-        url = generate_prefilled_url(req.form_url, req.questions, req.answers)
-        return UrlGeneratorResponse(prefilled_url=url)
+        # 1. Extract data from Google Form
+        data = await extract_form_data(req.form_url)
+        session_id = data["session_id"]
+        
+        # Convert raw dicts to Pydantic objects
+        questions = [FormQuestion(**q) for q in data["questions"]]
+        
+        try:
+            # 2. Decide answers based on profile
+            decisions = await decide_answers(questions)
+            
+            # Keep only answers where fill=True
+            valid_decisions = [d for d in decisions if d.fill]
+            
+            # 3. Generate the prefilled URL
+            url = generate_prefilled_url(req.form_url, questions, valid_decisions)
+            
+            return UrlGeneratorResponse(prefilled_url=url)
+        finally:
+            # Always close the session to prevent memory leaks
+            await close_session(session_id)
+            
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
