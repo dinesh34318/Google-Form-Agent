@@ -9,7 +9,7 @@ from agent import decide_answers
 from url_generator import generate_prefilled_url
 
 async def run_test():
-    url = "https://docs.google.com/forms/d/e/1FAIpQLScJp7wEaMvH-iKuvNixB2b25N_VwK9C6bC2B8zKxYq9rD-Pmw/viewform"
+    url = "https://docs.google.com/forms/d/e/1FAIpQLSfiT6dO-w2Fv84m5U-9JzDMyUj20o_T_G4R4T3A3pWwKj-sLw/viewform"
     print("1. Extracting data...")
     res = await extract_form_data(url)
     print("Questions found:", len(res["questions"]))

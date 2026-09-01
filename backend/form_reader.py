@@ -23,8 +23,36 @@ async def extract_form_data(url: str) -> dict:
     page = await context.new_page()
     
     await page.goto(url, wait_until="domcontentloaded")
-    # Add a small explicit wait to ensure React/Google Forms JS renders the form
+    # Wait for the main form content to render
+    try:
+        await page.wait_for_selector('div[role="listitem"]', timeout=5000)
+    except:
+        print("DEBUG: Timeout waiting for listitem selector.")
+    
     await page.wait_for_timeout(3000)
+    
+    # ------------------- DIAGNOSTICS -------------------
+    print("DEBUG: Final URL ->", page.url)
+    print("DEBUG: Page Title ->", await page.title())
+    
+    html = await page.content()
+    with open("debug_form.html", "w", encoding="utf-8") as f:
+        f.write(html)
+    print("DEBUG: Saved debug_form.html")
+    
+    await page.screenshot(path="debug_form.png", full_page=True)
+    print("DEBUG: Saved debug_form.png")
+    
+    listitems_count = len(await page.query_selector_all('div[role="listitem"]'))
+    input_count = len(await page.query_selector_all('input'))
+    radio_count = len(await page.query_selector_all('[role="radio"]'))
+    listbox_count = len(await page.query_selector_all('[role="listbox"]'))
+    
+    print(f"DEBUG: [role='listitem'] count -> {listitems_count}")
+    print(f"DEBUG: input count -> {input_count}")
+    print(f"DEBUG: [role='radio'] count -> {radio_count}")
+    print(f"DEBUG: [role='listbox'] count -> {listbox_count}")
+    # ---------------------------------------------------
     
     # Extract title
     title_element = await page.query_selector('div[role="heading"][aria-level="1"]')
@@ -33,7 +61,6 @@ async def extract_form_data(url: str) -> dict:
     # Extract questions
     questions = []
     
-    # Google Forms puts questions in div[role="listitem"]
     listitems = await page.query_selector_all('div[role="listitem"]')
     
     for idx, item in enumerate(listitems):
@@ -51,6 +78,39 @@ async def extract_form_data(url: str) -> dict:
             # Determine type and options
             q_type = "unknown"
             options = []
+            entry_id = None
+            
+            # Extract entry_id from data-params on the listitem or its child
+            # data-params looks like: %.[12345,"Question",null,0,[[67890,null,1]]]
+            # The entry ID is 67890 (the first number in the nested array)
+            import re
+            
+            # Try getting data-params directly on the listitem or inner jsmodel div
+            data_params = await item.get_attribute("data-params")
+            if not data_params:
+                jsmodel_div = await item.query_selector('div[jsmodel]')
+                if jsmodel_div:
+                    data_params = await jsmodel_div.get_attribute("data-params")
+            
+            if data_params:
+                # Regex to find the entry ID inside the nested array structure [[<id>,
+                match = re.search(r'\[\[(\d+),', data_params)
+                if match:
+                    entry_id = match.group(1)
+            
+            # Fallback if data-params extraction fails: check inputs directly
+            if not entry_id:
+                hidden_input = await item.query_selector('input[name^="entry."]')
+                if hidden_input:
+                    name_attr = await hidden_input.get_attribute("name")
+                    if name_attr and name_attr.startswith("entry."):
+                        entry_id = name_attr.split(".")[1]
+                else:
+                    any_input = await item.query_selector('[name^="entry."]')
+                    if any_input:
+                        name_attr = await any_input.get_attribute("name")
+                        if name_attr and name_attr.startswith("entry."):
+                            entry_id = name_attr.split(".")[1]
             
             # Check for radio (multiple_choice)
             radios = await item.query_selector_all('div[role="radio"]')
@@ -113,21 +173,6 @@ async def extract_form_data(url: str) -> dict:
                     q_type = "short_answer"
                 
             q_id = f"q_{idx}"
-            
-            # Extract entry_id for pre-filled URL generation
-            entry_id = None
-            hidden_input = await item.query_selector('input[name^="entry."]')
-            if hidden_input:
-                name_attr = await hidden_input.get_attribute("name")
-                if name_attr and name_attr.startswith("entry."):
-                    entry_id = name_attr.split(".")[1]
-            else:
-                # Some inputs use name="entry.XXXX" directly
-                any_input = await item.query_selector('[name^="entry."]')
-                if any_input:
-                    name_attr = await any_input.get_attribute("name")
-                    if name_attr and name_attr.startswith("entry."):
-                        entry_id = name_attr.split(".")[1]
             
             questions.append({
                 "id": q_id,
