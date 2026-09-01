@@ -23,6 +23,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
 @app.post("/analyze", response_model=FormAnalysisResponse)
 async def analyze_form(req: AnalyzeRequest):
     try:

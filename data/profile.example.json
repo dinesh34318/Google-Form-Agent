@@ -1,0 +1,11 @@
+{
+    "personal": {
+        "full_name": "John Doe",
+        "registration_number": "12345678",
+        "gender": "Male",
+        "date_of_birth": "2000-01-01"
+    },
+    "education": {
+        "current_year": "3rd Year"
+    }
+}
