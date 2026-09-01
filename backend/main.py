@@ -1,31 +1,20 @@
-import sys
-import asyncio
-
-if sys.platform == 'win32':
-    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from typing import List, Dict, Any
-
+from pydantic import BaseModel
+from typing import List
+import os
 
 from models import (
-    AnalyzeRequest, FormAnalysisResponse,
+    AnalyzeRequest, FormAnalysisResponse, 
     GenerateAnswersRequest, GenerateAnswersResponse,
-    FillFormRequest, FillFormResponse, UserAnswer
+    UrlGeneratorRequest, UrlGeneratorResponse
 )
-from form_reader import extract_form_data, close_session, active_sessions
+from form_reader import extract_form_data, close_session
 from agent import decide_answers
-from form_filler import fill_form
-from profile import update_preference
-
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import os
+from url_generator import generate_prefilled_url
 
 app = FastAPI(title="FormAgent API")
 
-# Allow mobile app to connect (still needed for dev)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -34,72 +23,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Static files must be mounted at the end to not override API routes
-
 @app.post("/analyze", response_model=FormAnalysisResponse)
 async def analyze_form(req: AnalyzeRequest):
     try:
-        result = await extract_form_data(req.form_url)
+        data = await extract_form_data(req.form_url)
+        # Immediately close session, no longer needed
+        await close_session(data["session_id"])
+        
         return FormAnalysisResponse(
-            form_title=result["form_title"],
-            questions=result["questions"]
+            form_title=data["form_title"],
+            questions=data["questions"],
+            session_id=data["session_id"]
         )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
 @app.post("/generate-answers", response_model=GenerateAnswersResponse)
-async def generate_answers(req: GenerateAnswersRequest):
+async def get_answers(req: GenerateAnswersRequest):
     try:
-        decisions = decide_answers(req.questions)
+        decisions = await decide_answers(req.questions)
         return GenerateAnswersResponse(answers=decisions)
     except Exception as e:
-         raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
 
-@app.post("/fill", response_model=FillFormResponse)
-async def fill_google_form(req: FillFormRequest):
-    # Find active session based on form URL (MVP shortcut if mobile doesn't send session_id)
-    # Ideally, we pass session_id from mobile.
-    session_id = None
-    for sid, session_data in active_sessions.items():
-        if session_data["url"] == req.form_url:
-            session_id = sid
-            break
-            
-    if not session_id:
-        # User might have restarted app or session died.
-        # We need to re-open the form, but let's just error for now.
-        raise HTTPException(status_code=400, detail="Active browser session not found. Please analyze again.")
-
+@app.post("/generate-prefilled-url", response_model=UrlGeneratorResponse)
+async def get_prefilled_url(req: UrlGeneratorRequest):
     try:
-        result = await fill_form(session_id, req.answers)
-        return FillFormResponse(
-            status=result["status"],
-            session_id=session_id,
-            message="Form filled successfully. Please review the browser window and manually submit."
-        )
+        url = generate_prefilled_url(req.form_url, req.questions, req.answers)
+        return UrlGeneratorResponse(prefilled_url=url)
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
-
-@app.post("/remember")
-async def remember_answer(data: Dict[str, Any]):
-    # Allow saving preferences
-    if "key" in data and "value" in data:
-        update_preference(data["key"], data["value"])
-        return {"status": "saved"}
-    raise HTTPException(status_code=400, detail="Invalid data")
-
-@app.get("/session/{session_id}")
-async def get_session_status(session_id: str):
-    if session_id in active_sessions:
-        return {"status": "active"}
-    return {"status": "expired"}
-
-# Mount SPA
-static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
-if os.path.exists(static_dir):
-    app.mount("/", StaticFiles(directory=static_dir, html=True), name="static")
+        raise HTTPException(status_code=400, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn

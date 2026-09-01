@@ -4,24 +4,30 @@ export interface FormQuestion {
     type: string;
     required: boolean;
     options?: string[];
+    entry_id?: string;
 }
 
 export interface FormAnalysisResponse {
     form_title: string;
     questions: FormQuestion[];
+    session_id: string;
 }
 
 export interface AnswerDecision {
     question: string;
-    profile_field: string | null;
-    answer: any | null;
+    profile_field?: string;
+    answer?: any;
     confidence: number;
-    needs_user_input: boolean;
+    fill: boolean;
     reason: string;
 }
 
 export interface GenerateAnswersResponse {
     answers: AnswerDecision[];
+}
+
+export interface UrlGeneratorResponse {
+    prefilled_url: string;
 }
 
 export interface UserAnswer {

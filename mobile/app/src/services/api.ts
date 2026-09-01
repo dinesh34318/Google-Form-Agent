@@ -1,16 +1,13 @@
 import { Platform } from 'react-native';
-import { FormAnalysisResponse, GenerateAnswersResponse, UserAnswer, FormQuestion } from '../types';
+import { FormAnalysisResponse, GenerateAnswersResponse, FormQuestion, AnswerDecision, UrlGeneratorResponse } from '../types';
 
-// Use localhost for web, 10.0.2.2 for Android emulator, or EXPO_PUBLIC_API_URL for physical devices.
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web' ? 'http://localhost:8000' : 'http://10.0.2.2:8000');
+// Use relative path for web so it works automatically when hosted by FastAPI.
+const API_BASE = process.env.EXPO_PUBLIC_API_URL || (Platform.OS === 'web' ? '' : 'http://10.0.2.2:8000');
 
 export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> => {
     const res = await fetch(`${API_BASE}/analyze`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'true'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ form_url: url })
     });
     if (!res.ok) throw new Error(await res.text());
@@ -20,25 +17,20 @@ export const analyzeForm = async (url: string): Promise<FormAnalysisResponse> =>
 export const generateAnswers = async (questions: FormQuestion[]): Promise<GenerateAnswersResponse> => {
     const res = await fetch(`${API_BASE}/generate-answers`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'true'
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ questions })
     });
     if (!res.ok) throw new Error(await res.text());
     return res.json();
 };
 
-export const fillForm = async (url: string, answers: UserAnswer[]): Promise<{status: string, session_id: string, message: string}> => {
-    const res = await fetch(`${API_BASE}/fill`, {
+export const generatePrefilledUrl = async (url: string, questions: FormQuestion[], answers: AnswerDecision[]): Promise<string> => {
+    const res = await fetch(`${API_BASE}/generate-prefilled-url`, {
         method: 'POST',
-        headers: { 
-            'Content-Type': 'application/json',
-            'Bypass-Tunnel-Reminder': 'true'
-        },
-        body: JSON.stringify({ form_url: url, answers })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ form_url: url, questions, answers })
     });
     if (!res.ok) throw new Error(await res.text());
-    return res.json();
+    const data: UrlGeneratorResponse = await res.json();
+    return data.prefilled_url || url;
 };

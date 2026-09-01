@@ -11,13 +11,13 @@ browsers = {}
 
 async def init_browser():
     playwright = await async_playwright().start()
-    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
+    is_headless = os.getenv("HEADLESS", "false").lower() == "true"
     browser = await playwright.chromium.launch(headless=is_headless)
     return playwright, browser
 
 async def extract_form_data(url: str) -> dict:
     playwright = await async_playwright().start()
-    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
+    is_headless = os.getenv("HEADLESS", "false").lower() == "true"
     browser = await playwright.chromium.launch(headless=is_headless)
     context = await browser.new_context()
     page = await context.new_page()
@@ -114,12 +114,28 @@ async def extract_form_data(url: str) -> dict:
                 
             q_id = f"q_{idx}"
             
+            # Extract entry_id for pre-filled URL generation
+            entry_id = None
+            hidden_input = await item.query_selector('input[name^="entry."]')
+            if hidden_input:
+                name_attr = await hidden_input.get_attribute("name")
+                if name_attr and name_attr.startswith("entry."):
+                    entry_id = name_attr.split(".")[1]
+            else:
+                # Some inputs use name="entry.XXXX" directly
+                any_input = await item.query_selector('[name^="entry."]')
+                if any_input:
+                    name_attr = await any_input.get_attribute("name")
+                    if name_attr and name_attr.startswith("entry."):
+                        entry_id = name_attr.split(".")[1]
+            
             questions.append({
                 "id": q_id,
                 "question": question_text,
                 "type": q_type,
                 "required": is_required,
-                "options": options if options else None
+                "options": options if options else None,
+                "entry_id": entry_id
             })
             
         except Exception as e:

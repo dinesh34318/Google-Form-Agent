@@ -1,99 +1,50 @@
 import React, { useState } from 'react';
 import { StyleSheet, Text, View, TextInput, Button, ScrollView, ActivityIndicator, Alert } from 'react-native';
-import { analyzeForm, generateAnswers, fillForm } from './src/services/api';
-import { FormAnalysisResponse, AnswerDecision, UserAnswer, FormQuestion } from './src/types';
+import * as Linking from 'expo-linking';
+import { analyzeForm, generateAnswers, generatePrefilledUrl } from './src/services/api';
+import { FormAnalysisResponse, AnswerDecision, FormQuestion } from './src/types';
 
 export default function App() {
   const [url, setUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
-  const [analysis, setAnalysis] = useState<FormAnalysisResponse | null>(null);
-  const [decisions, setDecisions] = useState<AnswerDecision[]>([]);
-  const [userAnswers, setUserAnswers] = useState<Record<string, any>>({});
   
-  const handleAnalyze = async () => {
+  const handleAutofill = async () => {
     if (!url) {
-      Alert.alert('Error', 'Please enter a valid URL');
+      Alert.alert('Error', 'Please enter a valid Google Form URL');
       return;
     }
-    setLoading(true);
-    setLoadingMsg('Analyzing your form...\n✓ Reading questions');
-    try {
-      const result = await analyzeForm(url);
-      setAnalysis(result);
-      
-      setLoadingMsg('Analyzing your form...\n✓ Understanding questions\n✓ Matching your profile');
-      const ansResult = await generateAnswers(result.questions);
-      setDecisions(ansResult.answers);
-      
-      // Pre-fill userAnswers state
-      const initialAnswers: Record<string, any> = {};
-      ansResult.answers.forEach(d => {
-        if (!d.needs_user_input && d.answer !== null) {
-          initialAnswers[d.question] = d.answer;
-        }
-      });
-      setUserAnswers(initialAnswers);
-      
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to analyze form');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleAnswerChange = (question: string, value: string) => {
-    setUserAnswers(prev => ({ ...prev, [question]: value }));
-  };
-  
-  const handleFill = async () => {
-    setLoading(true);
-    setLoadingMsg('Filling form in browser...');
     
-    // Prepare answers
-    const answersToSubmit: UserAnswer[] = decisions.map(d => ({
-      id: d.question, // Using question text as ID
-      question: d.question,
-      answer: userAnswers[d.question] || ''
-    }));
+    setLoading(true);
     
     try {
-      const res = await fillForm(url, answersToSubmit);
-      Alert.alert('Success', res.message);
-    } catch (e: any) {
-      Alert.alert('Error', e.message || 'Failed to fill form');
-    } finally {
+      // 1. Analyze
+      setLoadingMsg('Opening form...');
+      const analyzeResult = await analyzeForm(url);
+      
+      // 2. Map Profile
+      setLoadingMsg('Reading questions...\nMatching profile...');
+      const ansResult = await generateAnswers(analyzeResult.questions);
+      
+      // 3. Generate Link
+      setLoadingMsg('Filling known answers...');
+      const prefilledUrl = await generatePrefilledUrl(url, analyzeResult.questions, ansResult.answers);
+      
+      // 4. Open in Phone Browser
       setLoading(false);
+      Alert.alert(
+        'Form is ready for your review.',
+        'We have filled known answers. Please review the form, edit if necessary, and click Submit.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Form', onPress: () => Linking.openURL(prefilledUrl) }
+        ]
+      );
+      
+    } catch (e: any) {
+      setLoading(false);
+      Alert.alert('Error', e.message || 'Failed to process form');
     }
-  };
-
-  const renderQuestionInput = (q: FormQuestion, decision: AnswerDecision) => {
-    const val = userAnswers[q.question] || '';
-    
-    // For simplicity in MVP, we just render a text input for everything,
-    // but we show options if it's multiple choice or dropdown.
-    return (
-      <View style={styles.questionContainer} key={q.id}>
-        <Text style={styles.questionText}>{q.question} {q.required ? '*' : ''}</Text>
-        
-        {decision.needs_user_input ? (
-          <Text style={styles.needsInputLabel}>❓ Your input is required</Text>
-        ) : (
-          <Text style={styles.aiKnowsLabel}>✓ Answer found in profile (confidence: {Math.round(decision.confidence*100)}%)</Text>
-        )}
-        
-        {q.options && q.options.length > 0 && (
-          <Text style={styles.optionsLabel}>Options: {q.options.join(', ')}</Text>
-        )}
-        
-        <TextInput
-          style={styles.input}
-          value={String(val)}
-          onChangeText={(text) => handleAnswerChange(q.question, text)}
-          placeholder="Enter your answer"
-        />
-      </View>
-    );
   };
 
   if (loading) {
@@ -105,31 +56,10 @@ export default function App() {
     );
   }
 
-  if (analysis && decisions.length > 0) {
-    return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>{analysis.form_title}</Text>
-        <Text style={styles.subtitle}>Review your answers below</Text>
-        
-        {analysis.questions.map((q) => {
-          const decision = decisions.find(d => d.question === q.question) || {
-            question: q.question, profile_field: null, answer: null, confidence: 0, needs_user_input: true, reason: ''
-          };
-          return renderQuestionInput(q, decision);
-        })}
-        
-        <View style={styles.buttonContainer}>
-          <Button title="Fill Google Form" onPress={handleFill} color="#2196F3" />
-        </View>
-        <Text style={styles.warningText}>Note: The form will be filled in the backend browser. You must manually review and submit it.</Text>
-      </ScrollView>
-    );
-  }
-
   return (
     <View style={styles.centerContainer}>
-      <Text style={styles.title}>FormAgent 🤖</Text>
-      <Text style={styles.subtitle}>Paste Google Form URL</Text>
+      <Text style={styles.title}>FormAgent</Text>
+      
       <TextInput
         style={styles.urlInput}
         value={url}
@@ -137,22 +67,15 @@ export default function App() {
         placeholder="https://docs.google.com/forms/..."
         autoCapitalize="none"
       />
+      
       <View style={styles.buttonContainer}>
-        <Button title="Analyze Form" onPress={handleAnalyze} />
+        <Button title="Open & Autofill" onPress={handleAutofill} color="#2196F3" />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  scrollContent: {
-    padding: 20,
-    paddingTop: 50,
-  },
   centerContainer: {
     flex: 1,
     backgroundColor: '#fff',
@@ -161,14 +84,10 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  subtitle: {
-    fontSize: 16,
-    marginBottom: 20,
-    color: '#666',
+    marginBottom: 40,
+    color: '#333'
   },
   urlInput: {
     width: '100%',
@@ -178,56 +97,19 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingHorizontal: 15,
     marginBottom: 20,
+    fontSize: 16
   },
   buttonContainer: {
     width: '100%',
     marginVertical: 10,
+    borderRadius: 8,
+    overflow: 'hidden'
   },
   loadingText: {
     marginTop: 20,
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 24,
-  },
-  questionContainer: {
-    marginBottom: 20,
-    padding: 15,
-    backgroundColor: '#f9f9f9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#eee',
-  },
-  questionText: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 5,
-  },
-  aiKnowsLabel: {
-    color: 'green',
-    fontSize: 12,
-    marginBottom: 5,
-  },
-  needsInputLabel: {
-    color: 'red',
-    fontSize: 12,
-    marginBottom: 5,
-  },
-  optionsLabel: {
-    color: '#666',
-    fontSize: 12,
-    marginBottom: 10,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 5,
-    padding: 10,
-    backgroundColor: '#fff',
-  },
-  warningText: {
-    marginTop: 20,
-    color: '#f57c00',
-    textAlign: 'center',
-    fontSize: 12,
+    color: '#666'
   }
 });

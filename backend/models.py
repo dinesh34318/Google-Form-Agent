@@ -1,44 +1,40 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 from typing import List, Optional, Any
 
 class FormQuestion(BaseModel):
     id: str
     question: str
-    type: str # text, paragraph, multiple_choice, dropdown, checkbox, date
+    type: str
     required: bool
     options: Optional[List[str]] = None
-
-class FormAnalysisResponse(BaseModel):
-    form_title: str
-    questions: List[FormQuestion]
+    entry_id: Optional[str] = None
 
 class AnalyzeRequest(BaseModel):
     form_url: str
 
-class GenerateAnswersRequest(BaseModel):
+class FormAnalysisResponse(BaseModel):
+    form_title: str
     questions: List[FormQuestion]
+    session_id: str
 
 class AnswerDecision(BaseModel):
     question: str
     profile_field: Optional[str] = None
     answer: Optional[Any] = None
     confidence: float
-    needs_user_input: bool
+    fill: bool
     reason: str
+
+class GenerateAnswersRequest(BaseModel):
+    questions: List[FormQuestion]
 
 class GenerateAnswersResponse(BaseModel):
     answers: List[AnswerDecision]
 
-class UserAnswer(BaseModel):
-    id: str
-    question: str
-    answer: Any
-
-class FillFormRequest(BaseModel):
+class UrlGeneratorRequest(BaseModel):
     form_url: str
-    answers: List[UserAnswer]
+    questions: List[FormQuestion]
+    answers: List[AnswerDecision]
 
-class FillFormResponse(BaseModel):
-    status: str
-    session_id: str
-    message: Optional[str] = None
+class UrlGeneratorResponse(BaseModel):
+    prefilled_url: Optional[str] = None
