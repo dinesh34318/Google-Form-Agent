@@ -9,11 +9,9 @@ async def fill_form(session_id: str, answers: List[UserAnswer]) -> dict:
         
     session = active_sessions[session_id]
     page = session["page"]
-    listitems = session["listitems"]
     
-    # We will map answers by matching question text, or we can assume the index 
-    # of listitems corresponds to the order of questions extracted.
-    # To be robust, let's iterate answers and find the matching listitem.
+    # Re-query listitems in case the page re-rendered and previous elements are detached
+    listitems = await page.query_selector_all('div[role="listitem"]')
     
     for user_answer in answers:
         if user_answer.answer is None:

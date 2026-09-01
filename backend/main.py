@@ -72,6 +72,8 @@ async def fill_google_form(req: FillFormRequest):
             message="Form filled successfully. Please review the browser window and manually submit."
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/remember")
@@ -90,4 +92,4 @@ async def get_session_status(session_id: str):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)

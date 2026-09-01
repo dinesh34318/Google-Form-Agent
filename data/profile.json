@@ -1,22 +1,34 @@
 {
   "personal": {
-    "full_name": "John Doe",
-    "email": "john.doe@example.com",
-    "phone": "+1234567890",
-    "registration_number": "REG123456",
+    "First_name": "VENKATA DINESH",
+    "Last_name": "KATARU",
+    "full_name": "KATARU VENKATA DINESH",
+    "email": "dinesh_kataru@srmap.edu.in",
+    "phone": "9347321844",
+    "registration_number": "AP23110011343",
     "gender": "Male",
-    "date_of_birth": "1998-05-15"
+    "date_of_birth": "2005-01-15"
   },
   "education": {
-    "college": "Example University",
+    "college": "SRM UNIVERSITY AP",
     "degree": "Bachelor of Technology",
     "branch": "Computer Science",
-    "cgpa": "3.8",
-    "current_year": "3rd Year"
+    "cgpa": "9.01",
+    "current_year": "4th Year"
   },
-  "skills": ["Python", "React Native", "TypeScript", "FastAPI"],
-  "projects": ["FormAgent", "AI Assistant"],
-  "experience": ["Software Engineering Intern at TechCorp"],
+  "skills": [
+    "Python",
+    "React Native",
+    "TypeScript",
+    "FastAPI"
+  ],
+  "projects": [
+    "FormAgent",
+    "AI Assistant"
+  ],
+  "experience": [
+    "Software Engineering Intern at TechCorp"
+  ],
   "preferences": {
     "willing_to_relocate": true
   }
