@@ -1,5 +1,6 @@
 import asyncio
 import uuid
+import os
 from playwright.async_api import async_playwright, Page
 from models import FormQuestion, FormAnalysisResponse
 
@@ -10,12 +11,14 @@ browsers = {}
 
 async def init_browser():
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=True)
+    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
+    browser = await playwright.chromium.launch(headless=is_headless)
     return playwright, browser
 
 async def extract_form_data(url: str) -> dict:
     playwright = await async_playwright().start()
-    browser = await playwright.chromium.launch(headless=False) # MUST be False for user to review and submit
+    is_headless = os.getenv("HEADLESS", "true").lower() == "true"
+    browser = await playwright.chromium.launch(headless=is_headless)
     context = await browser.new_context()
     page = await context.new_page()
     
